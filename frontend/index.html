@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contextual Video Assistant</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <h1>Contextual Video Assistant</h1>
+
+    <div class="container">
+        <div class="video-section">
+            <video id="videoPlayer" controls width="640">
+                <source src="sample.mp4" type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
+        </div>
+
+        <div class="qa-section">
+            <h2>Ask about the video:</h2>
+            <textarea id="queryInput" rows="4" placeholder="e.g., What is this demo about?"></textarea>
+            <button id="submitQuery">Ask Question</button>
+
+            <div id="loadingIndicator" style="display: none;">Processing...</div>
+
+            <h2>Answer:</h2>
+            <div id="answerDisplay" class="answer-box">
+                Ask a question to see the answer here.
+            </div>
+            <div id="timestampSuggestion">
+                </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

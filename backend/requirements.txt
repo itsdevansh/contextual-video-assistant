@@ -1,0 +1,6 @@
+Flask>=2.0
+flask-cors>=3.0 # For handling requests from frontend dev server
+transformers>=4.20.0
+torch>=1.9.0 # Or tensorflow if you prefer/have it installed
+scikit-learn>=1.0
+sentencepiece>=0.1.90 # Required by Flan-T5 tokenizer
