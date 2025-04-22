@@ -1,0 +1,8 @@
+setup.py
+frontend/__init__.py
+frontend/gradio_ui.py
+video_assistant.egg-info/PKG-INFO
+video_assistant.egg-info/SOURCES.txt
+video_assistant.egg-info/dependency_links.txt
+video_assistant.egg-info/requires.txt
+video_assistant.egg-info/top_level.txt

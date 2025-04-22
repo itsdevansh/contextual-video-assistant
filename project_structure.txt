@@ -1,0 +1,30 @@
+.
+├── backend/
+│   ├── __init__.py
+│   ├── app.py
+│   ├── Dockerfile
+│   ├── frame_processor.py
+│   ├── requirements.txt
+│   ├── tests/
+│   │   ├── __init__.py
+│   │   ├── test_app.py
+│   │   └── test_video_processor.py
+│   ├── video_processor.py
+│   └── wsgi.py
+├── frontend/
+│   ├── __init__.py
+│   ├── gradio_ui.py
+│   └── tests/
+│       └── test_gradio_ui.py
+├── extra/
+│   ├── experiment.ipynb
+│   └── product.py
+├── conftest.py
+├── pytest.ini
+├── setup.py
+└── video_assistant.egg-info/
+    ├── PKG-INFO
+    ├── SOURCES.txt
+    ├── dependency_links.txt
+    ├── requires.txt
+    └── top_level.txt
