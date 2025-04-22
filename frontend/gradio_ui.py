@@ -1,8 +1,12 @@
 import gradio as gr
 import requests
 from pathlib import Path
+import os
+from dotenv import load_dotenv
 
-BACKEND_URL = "http://localhost:5050"
+load_dotenv()
+
+BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:5050")
 
 def check_backend():
     """Check if backend server is accessible"""
