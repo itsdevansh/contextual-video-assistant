@@ -23,4 +23,4 @@ RUN mkdir -p data/videos
 EXPOSE 5050
 
 # Run with gunicorn
-CMD ["gunicorn", "--workers=2", "--timeout=300", "--threads=4", "--bind=0.0.0.0:5000", "app:app"]
+CMD ["gunicorn", "--workers=2", "--timeout=300", "--threads=4", "--bind=0.0.0.0:5050", "app:app"]
