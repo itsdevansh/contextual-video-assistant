@@ -13,17 +13,23 @@ import faiss
 import torch
 from skimage.metrics import structural_similarity as ssim
 
+# Initialize models at module level
+print("Loading BLIP model...")
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+BLIP_PROCESSOR = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
+BLIP_MODEL = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-base").to(DEVICE)
+
+print("Loading Sentence Transformer...")
+ST_MODEL = SentenceTransformer("all-MiniLM-L6-v2")
+
 class VideoProcessor:
     def __init__(self):
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.device = DEVICE
         
-        # Initialize models
-        print("Loading BLIP model...")
-        self.blip_processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
-        self.blip_model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-base").to(self.device)
-        
-        print("Loading Sentence Transformer...")
-        self.st_model = SentenceTransformer("all-MiniLM-L6-v2")
+        # Use global models
+        self.blip_processor = BLIP_PROCESSOR
+        self.blip_model = BLIP_MODEL
+        self.st_model = ST_MODEL
         
         print("Initializing OpenAI client...")
         self.openai_client = OpenAI()
@@ -45,55 +51,54 @@ class VideoProcessor:
         frame_interval = max(1, int(video_fps / fps))
         
         frame_idx = 0
-        current_caption = None
-        current_start = None
         last_frame = None
         
-        while True:
-            ret, frame = cap.read()
-            if not ret:
-                break
+        try:
+            while True:
+                ret, frame = cap.read()
+                if not ret:
+                    break
                 
-            timestamp = frame_idx / video_fps
-            
-            if frame_idx % frame_interval == 0:
-                frame_resized = cv2.resize(frame, (224, 224))
-                frame_rgb = cv2.cvtColor(frame_resized, cv2.COLOR_BGR2RGB)
+                timestamp = frame_idx / video_fps
                 
-                if last_frame is not None:
-                    similarity = ssim(last_frame, frame_rgb, channel_axis=-1)
-                    if similarity >= ssim_threshold:
-                        frame_idx += 1
-                        continue
-                        
-                last_frame = frame_rgb.copy()
-                
-                # Generate caption with BLIP
-                pil_image = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-                inputs = self.blip_processor(images=pil_image, return_tensors="pt").to(self.device)
-                out = self.blip_model.generate(**inputs)
-                caption = self.blip_processor.decode(out[0], skip_special_tokens=True)
-                
-                if caption != current_caption:
-                    if current_caption is not None:
-                        segments.append({
-                            "caption": current_caption,
-                            "start_time": current_start,
-                            "end_time": timestamp
-                        })
-                    current_caption = caption
-                    current_start = timestamp
+                if frame_idx % frame_interval == 0:
+                    # Reduce memory usage by processing smaller frames
+                    frame_resized = cv2.resize(frame, (224, 224))
+                    frame_rgb = cv2.cvtColor(frame_resized, cv2.COLOR_BGR2RGB)
                     
-            frame_idx += 1
-            
-        cap.release()
-        
-        if current_caption:
-            segments.append({
-                "caption": current_caption,
-                "start_time": current_start,
-                "end_time": timestamp
-            })
+                    if last_frame is not None:
+                        similarity = ssim(last_frame, frame_rgb, channel_axis=-1)
+                        if similarity >= ssim_threshold:
+                            frame_idx += 1
+                            continue
+                    
+                    # Convert to PIL Image
+                    pil_image = Image.fromarray(frame_rgb)
+                    
+                    # Generate caption
+                    inputs = self.blip_processor(pil_image, return_tensors="pt").to(self.device)
+                    outputs = self.blip_model.generate(**inputs)
+                    caption = self.blip_processor.decode(outputs[0], skip_special_tokens=True)
+                    
+                    segments.append({
+                        'timestamp': timestamp,
+                        'caption': caption,
+                        'start_time': timestamp,
+                        'end_time': timestamp + (1/fps)  # Approximate end time
+                    })
+                    
+                    # Update last frame and clear memory
+                    last_frame = frame_rgb.copy()
+                    del frame_rgb
+                    del pil_image
+                    del inputs
+                    del outputs
+                    torch.cuda.empty_cache() if torch.cuda.is_available() else None
+                
+                frame_idx += 1
+                
+        finally:
+            cap.release()
             
         return segments
 
@@ -131,8 +136,13 @@ class VideoProcessor:
             for segment in segments:
                 matched_text = []
                 for trans in transcription:
-                    if trans.end >= segment["start_time"] and trans.start <= segment["end_time"]:
-                        matched_text.append(trans.text.strip())
+                    # Access start and end attributes correctly
+                    trans_start = trans.start if hasattr(trans, 'start') else trans['start']
+                    trans_end = trans.end if hasattr(trans, 'end') else trans['end']
+                    trans_text = trans.text if hasattr(trans, 'text') else trans['text']
+                    
+                    if trans_end >= segment["start_time"] and trans_start <= segment["end_time"]:
+                        matched_text.append(trans_text.strip())
                 segment["transcript"] = " ".join(matched_text)
             
             # Create FAISS index
