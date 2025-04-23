@@ -72,7 +72,11 @@ with gr.Blocks(title="Video Question Answering System") as demo:
             status_output = gr.Textbox(label="Status", interactive=False)
             
         with gr.Column():
-            question_input = gr.Textbox(label="Your Question", placeholder="Ask something about the video...")
+            question_input = gr.Textbox(
+                label="Your Question",
+                placeholder="Ask something about the video...",
+                autofocus=True
+            )
             ask_button = gr.Button("Ask Question")
             answer_output = gr.Textbox(label="Answer", interactive=False)
     
@@ -82,7 +86,14 @@ with gr.Blocks(title="Video Question Answering System") as demo:
         outputs=[job_id_output, status_output]
     )
     
+    # Add both button click and Enter key handlers
     ask_button.click(
+        ask_question,
+        inputs=[job_id_output, question_input],
+        outputs=answer_output
+    )
+    
+    question_input.submit(
         ask_question,
         inputs=[job_id_output, question_input],
         outputs=answer_output
