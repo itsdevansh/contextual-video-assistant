@@ -13,9 +13,20 @@ import faiss
 import torch
 from skimage.metrics import structural_similarity as ssim
 
+# Initialize device
+print("Checking available compute devices...")
+if torch.cuda.is_available():
+    DEVICE = "cuda"
+    print("Using CUDA GPU")
+elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+    DEVICE = "mps"
+    print("Using Apple Silicon MPS")
+else:
+    DEVICE = "cpu"
+    print("Using CPU")
+
 # Initialize models at module level
 print("Loading BLIP model...")
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 BLIP_PROCESSOR = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
 BLIP_MODEL = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-base").to(DEVICE)
 
@@ -52,6 +63,7 @@ class VideoProcessor:
         
         frame_idx = 0
         last_frame = None
+        batch_size = 8  # Process frames in batches
         
         try:
             while True:
@@ -63,7 +75,7 @@ class VideoProcessor:
                 
                 if frame_idx % frame_interval == 0:
                     # Reduce memory usage by processing smaller frames
-                    frame_resized = cv2.resize(frame, (224, 224))
+                    frame_resized = cv2.resize(frame, (160, 160))  # Even smaller resolution
                     frame_rgb = cv2.cvtColor(frame_resized, cv2.COLOR_BGR2RGB)
                     
                     if last_frame is not None:
@@ -75,16 +87,17 @@ class VideoProcessor:
                     # Convert to PIL Image
                     pil_image = Image.fromarray(frame_rgb)
                     
-                    # Generate caption
-                    inputs = self.blip_processor(pil_image, return_tensors="pt").to(self.device)
-                    outputs = self.blip_model.generate(**inputs)
-                    caption = self.blip_processor.decode(outputs[0], skip_special_tokens=True)
+                    # Generate caption with smaller batch size
+                    with torch.no_grad():  # Reduce memory usage
+                        inputs = self.blip_processor(pil_image, return_tensors="pt").to(self.device)
+                        outputs = self.blip_model.generate(**inputs, max_length=30)  # Limit output length
+                        caption = self.blip_processor.decode(outputs[0], skip_special_tokens=True)
                     
                     segments.append({
                         'timestamp': timestamp,
                         'caption': caption,
                         'start_time': timestamp,
-                        'end_time': timestamp + (1/fps)  # Approximate end time
+                        'end_time': timestamp + (1/fps)
                     })
                     
                     # Update last frame and clear memory
@@ -94,6 +107,10 @@ class VideoProcessor:
                     del inputs
                     del outputs
                     torch.cuda.empty_cache() if torch.cuda.is_available() else None
+                    
+                    # Process in batches to avoid memory overflow
+                    if len(segments) % batch_size == 0:
+                        torch.cuda.empty_cache() if torch.cuda.is_available() else None
                 
                 frame_idx += 1
                 

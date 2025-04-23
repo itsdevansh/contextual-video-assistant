@@ -23,4 +23,4 @@ RUN mkdir -p data/videos
 EXPOSE 5050
 
 # Run with gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:5050", "--workers", "4", "wsgi:app"]
+CMD ["gunicorn", "--workers=2", "--timeout=300", "--threads=4", "--bind=0.0.0.0:5000", "app:app"]
