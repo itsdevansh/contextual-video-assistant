@@ -56,11 +56,26 @@ def upload():
             print("Processing failed: No job_id returned")
             return jsonify({'error': 'Processing failed'}), 500
     except Exception as e:
-        print(f"Error during upload/processing: {str(e)}")
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"Error during upload/processing:\n{error_trace}")
         # Clean up on error
         if 'temp_path' in locals() and os.path.exists(temp_path):
             os.remove(temp_path)
-        return jsonify({'error': str(e)}), 500
+            print(f"Cleaned up temporary file: {temp_path}")
+        
+        # Check if error is related to CUDA/GPU
+        if "CUDA" in str(e) or "GPU" in str(e):
+            error_msg = "GPU error occurred. Ensure CUDA is properly configured on the instance."
+        elif "memory" in str(e).lower():
+            error_msg = "Out of memory error. Try reducing batch size or video resolution."
+        else:
+            error_msg = str(e)
+            
+        return jsonify({
+            'error': error_msg,
+            'details': error_trace
+        }), 500
 
 @app.route('/ask', methods=['POST'])
 def ask():

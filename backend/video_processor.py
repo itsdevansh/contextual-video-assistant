@@ -143,11 +143,22 @@ class VideoProcessor:
         job_id = uuid.uuid4().hex
         
         try:
+            # Log available memory
+            if torch.cuda.is_available():
+                print(f"GPU Memory before processing:")
+                print(f"Allocated: {torch.cuda.memory_allocated()/1e9:.2f}GB")
+                print(f"Reserved: {torch.cuda.memory_reserved()/1e9:.2f}GB")
+                print(f"Max allocated: {torch.cuda.max_memory_allocated()/1e9:.2f}GB")
+            
             # Extract video segments
+            print(f"Starting video processing for {video_path}")
             segments = self.extract_significant_segments(video_path)
+            print(f"Extracted {len(segments)} segments")
             
             # Get audio transcription
+            print("Starting audio transcription")
             transcription = self.transcribe_audio(video_path)
+            print(f"Transcription complete: {len(transcription)} segments")
             
             # Align transcripts with segments
             for segment in segments:
@@ -163,6 +174,7 @@ class VideoProcessor:
                 segment["transcript"] = " ".join(matched_text)
             
             # Create FAISS index
+            print("Creating FAISS index")
             combined_texts = [f"{seg['caption']} {seg['transcript']}" for seg in segments]
             embeddings = self.st_model.encode(combined_texts, convert_to_numpy=True, normalize_embeddings=True)
             
@@ -175,10 +187,16 @@ class VideoProcessor:
                 "segments": segments
             }
             
+            print(f"Processing complete. Job ID: {job_id}")
             return job_id
         
         except Exception as e:
-            print(f"Error processing video: {e}")
+            import traceback
+            print(f"Error processing video:\n{traceback.format_exc()}")
+            if torch.cuda.is_available():
+                print(f"GPU Memory at error:")
+                print(f"Allocated: {torch.cuda.memory_allocated()/1e9:.2f}GB")
+                print(f"Reserved: {torch.cuda.memory_reserved()/1e9:.2f}GB")
             return None
 
     def answer_question(self, job_id, question, top_k=5):
