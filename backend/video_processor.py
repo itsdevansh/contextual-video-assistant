@@ -125,7 +125,7 @@ class VideoProcessor:
         
         with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as tmp_audio:
             audio_path = tmp_audio.name
-            video.audio.write_audiofile(audio_path, verbose=False, logger=None)
+            video.audio.write_audiofile(audio_path)
             
         with open(audio_path, "rb") as audio_file:
             transcription = self.openai_client.audio.transcriptions.create(
